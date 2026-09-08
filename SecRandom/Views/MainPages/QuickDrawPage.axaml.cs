@@ -140,9 +140,13 @@ public partial class QuickDrawPage : UserControl
         {
             if (propertyName == nameof(QuickDrawPageViewModel.PreviewAnimationRevision))
             {
+                var autoCloseRevision = ++_autoCloseRevision;
                 CancelAutoClose();
-                _autoCloseRevision++;
                 await WaitForResultPresenterLayoutAsync();
+                // 已有更新的动画请求（含停止后的结果动画）抢在前面时，
+                // 丢弃本次过期预览帧，避免把最终结果当作滚动预览再播一次（闪一下）。
+                if (_isUnloaded || autoCloseRevision != _autoCloseRevision)
+                    return;
                 await DrawAnimationHelper.PreviewAsync(
                     _resultPresenter,
                     ViewModel.AnimationStyle,

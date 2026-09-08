@@ -12,6 +12,7 @@ public sealed partial class LotteryResultPresenter : UserControl
 {
     private readonly ItemsControl _resultPresenter;
     private LotteryPageViewModel? _viewModel;
+    private long _animationEpoch;
 
     public LotteryResultPresenter()
     {
@@ -52,15 +53,26 @@ public sealed partial class LotteryResultPresenter : UserControl
         if (viewModel is null)
             return;
 
+        // 每次动画请求都会抬高动画世代号。延迟执行时若已有更新的请求（含停止后的结果动画）
+        // 抢在前面，就丢弃本次过期帧，避免在停止时把最终结果当作滚动预览再播一次（闪一下）。
+        var epoch = ++_animationEpoch;
+        var isPreview = e.PropertyName == nameof(LotteryPageViewModel.PreviewAnimationRevision);
+        var isResult = e.PropertyName == nameof(LotteryPageViewModel.ResultAnimationRevision);
+        if (!isPreview && !isResult)
+            return;
+
         Dispatcher.UIThread.Post(async () =>
         {
             try
             {
                 await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render).GetTask();
-                if (e.PropertyName == nameof(LotteryPageViewModel.PreviewAnimationRevision))
+                if (epoch != _animationEpoch)
+                    return;
+
+                if (isPreview)
                     await DrawAnimationHelper.PreviewAsync(_resultPresenter, viewModel.AnimationStyle,
                         viewModel.PreviewAnimationDuration);
-                else if (e.PropertyName == nameof(LotteryPageViewModel.ResultAnimationRevision))
+                else if (isResult)
                     await DrawAnimationHelper.RevealAsync(_resultPresenter, viewModel.AnimationEnabled,
                         viewModel.AnimationStyle, viewModel.AnimationDuration);
             }

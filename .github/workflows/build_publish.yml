@@ -815,7 +815,6 @@ jobs:
     if: ${{ always() && success('build_desktop') && success('build_android') && success('build_ios') && success('build_pluginsdk') && github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag && github.event_name != 'pull_request' }}
     permissions:
       contents: write
-      id-token: write
     concurrency:
       group: publish-public
     steps:
@@ -841,24 +840,6 @@ jobs:
           }
           Write-Host "Combined files:"
           Get-ChildItem $releaseOutput -File | Select-Object Name, Length
-
-      - name: NuGet login (OIDC → temp API key)
-        uses: NuGet/login@v1
-        id: login
-        with:
-          user: ${{ secrets.NUGET_USER }}
-
-      - name: NuGet push
-        shell: pwsh
-        env:
-          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: |
-          $packages = Get-ChildItem './artifacts/release/downloaded/pluginsdk' -Filter *.nupkg -Recurse | Select-Object -ExpandProperty FullName
-          if (-not $packages) { throw 'No Plugin SDK nupkg artifacts found to publish.' }
-          foreach ($nupkg in $packages) {
-            & dotnet nuget push $nupkg --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
-            if ($LASTEXITCODE -ne 0) { throw "NuGet push failed for $nupkg with exit code $LASTEXITCODE." }
-          }
 
       - name: Generate signed update manifest
         shell: pwsh

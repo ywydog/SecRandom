@@ -530,6 +530,7 @@ jobs:
           Get-ChildItem $releaseOutput -File | Select-Object Name, Length
 
       - name: Generate signed update manifest
+        if: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_PEM_BASE64 != '' }}
         shell: pwsh
         env:
           RELEASE_TAG: ${{ github.event.inputs.release_tag }}
